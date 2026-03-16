@@ -365,14 +365,127 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ── Merge Tab Groups ─────────────────────────────────────────────────────────
+
+  const mergeContainer = document.getElementById("mergeContainer");
+  const refreshMergeBtn = document.getElementById("refreshMergeBtn");
+
+  async function loadMergeableGroups() {
+    mergeContainer.innerHTML = "<p style='color:#888;text-align:center;padding:20px'>Scanning windows…</p>";
+
+    let allGroups, allTabs;
+    try {
+      [allGroups, allTabs] = await Promise.all([
+        chrome.tabGroups.query({}),
+        chrome.tabs.query({})
+      ]);
+    } catch (e) {
+      mergeContainer.innerHTML = `<p style='color:#c00;text-align:center;padding:20px'>Error: ${e.message}</p>`;
+      return;
+    }
+
+    // Count tabs per group
+    const tabCountByGroup = {};
+    for (const tab of allTabs) {
+      if (tab.groupId && tab.groupId !== -1) {
+        tabCountByGroup[tab.groupId] = (tabCountByGroup[tab.groupId] || 0) + 1;
+      }
+    }
+
+    // Index groups by title
+    const groupsByTitle = {};
+    for (const group of allGroups) {
+      if (!group.title) continue;
+      if (!groupsByTitle[group.title]) groupsByTitle[group.title] = [];
+      groupsByTitle[group.title].push(group);
+    }
+
+    // Only keep titles that appear in more than one window
+    const mergeables = Object.entries(groupsByTitle).filter(([, groups]) => {
+      const windowIds = new Set(groups.map(g => g.windowId));
+      return windowIds.size > 1;
+    });
+
+    if (mergeables.length === 0) {
+      mergeContainer.className = "merge-empty-state";
+      mergeContainer.innerHTML = "No duplicate groups found across windows. All good! ✅";
+      return;
+    }
+
+    mergeContainer.className = "";
+    mergeContainer.innerHTML = "";
+
+    for (const [title, groups] of mergeables) {
+      const item = document.createElement("div");
+      item.className = "merge-group-item";
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "merge-group-name";
+      nameEl.textContent = `"${title}" — ${groups.length} windows`;
+      item.appendChild(nameEl);
+
+      const list = document.createElement("div");
+      list.className = "merge-window-list";
+
+      groups.forEach((group, idx) => {
+        const entry = document.createElement("div");
+        entry.className = "merge-window-entry";
+
+        const label = document.createElement("span");
+        const tabCount = tabCountByGroup[group.id] || 0;
+        label.textContent = `Window ${group.windowId}  ·  ${tabCount} tab${tabCount !== 1 ? "s" : ""}`;
+
+        const mergeBtn = document.createElement("button");
+        mergeBtn.className = "btn btn-merge";
+        mergeBtn.textContent = "Merge into this window";
+        mergeBtn.addEventListener("click", () => mergeGroupsInto(group, groups, allTabs));
+
+        entry.appendChild(label);
+        entry.appendChild(mergeBtn);
+        list.appendChild(entry);
+      });
+
+      item.appendChild(list);
+      mergeContainer.appendChild(item);
+    }
+  }
+
+  async function mergeGroupsInto(targetGroup, allGroupsForTitle, allTabs) {
+    const sourceGroups = allGroupsForTitle.filter(g => g.id !== targetGroup.id);
+
+    for (const sourceGroup of sourceGroups) {
+      const tabsToMove = allTabs.filter(t => t.groupId === sourceGroup.id);
+      if (tabsToMove.length === 0) continue;
+
+      const tabIds = tabsToMove.map(t => t.id);
+
+      try {
+        // Move tabs to the target window first
+        for (const tabId of tabIds) {
+          await chrome.tabs.move(tabId, { windowId: targetGroup.windowId, index: -1 });
+        }
+        // Then add them to the target group
+        await chrome.tabs.group({ groupId: targetGroup.id, tabIds });
+      } catch (e) {
+        showStatus(`Error merging: ${e.message}`, true);
+        return;
+      }
+    }
+
+    showStatus(`Merged all "${targetGroup.title}" groups into window ${targetGroup.windowId}! 🎉`);
+    // Refresh the merge list
+    loadMergeableGroups();
+  }
+
   // Initialize the options page
   function initialize() {
     initializeColorPicker();
     loadRules();
-    
+
     // Event listeners
     addRuleForm.addEventListener("submit", handleFormSubmit);
     saveButton.addEventListener("click", saveRules);
+    refreshMergeBtn.addEventListener("click", loadMergeableGroups);
     
     // Auto-save when rules change (optional)
     // Uncomment if you want automatic saving

@@ -33,32 +33,58 @@ function getTabGroups() {
  * 3. Core grouping logic
  ********************************/
 async function groupTab(tab, retryCount = 0) {
-  if (!tab.url) return;
+  if (!tab || !tab.id || !tab.url) return;
+
+  // Skip internal Chrome pages – they can't be grouped and grouping them
+  // during a split-view transition is the main source of crashes.
+  if (
+    tab.url.startsWith("chrome://") ||
+    tab.url.startsWith("chrome-extension://") ||
+    tab.url.startsWith("about:") ||
+    tab.url === "about:blank"
+  ) {
+    return;
+  }
+
+  // Always fetch fresh tab state before touching groups.
+  // During split-view Chrome moves tabs between windows; the tab object
+  // passed by the event may already be stale (wrong windowId / status).
+  let freshTab;
+  try {
+    freshTab = await chrome.tabs.get(tab.id);
+  } catch {
+    // Tab no longer exists (closed mid-flight)
+    return;
+  }
+
+  // Only group fully-loaded tabs; skip if the tab is still transitioning
+  // between windows (status will be "loading" while Chrome moves it).
+  if (!freshTab.url || freshTab.status !== "complete") return;
 
   // Check each rule in dynamicRules
   for (const rule of dynamicRules) {
     let urlObj;
     try {
-      urlObj = new URL(tab.url);
+      urlObj = new URL(freshTab.url);
     } catch {}
     const host = urlObj?.hostname || "";
 
     if (host.endsWith(rule.pattern)) {
-      console.log(`Tab ${tab.id} with URL ${tab.url} matches rule: ${rule.pattern}`);
+      console.log(`Tab ${freshTab.id} with URL ${freshTab.url} matches rule: ${rule.pattern}`);
 
       try {
-        // Find or create the group for this rule
-        const groups = await chrome.tabGroups.query({ windowId: tab.windowId });
+        // Find or create the group for this rule in the tab's *current* window
+        const groups = await chrome.tabGroups.query({ windowId: freshTab.windowId });
         const existingGroup = groups.find((g) => g.title === rule.groupName);
 
         if (existingGroup) {
           // Add the tab to an existing group
-          await chrome.tabs.group({ groupId: existingGroup.id, tabIds: tab.id });
-          console.log(`Tab ${tab.id} added to existing group "${existingGroup.title}"`);
+          await chrome.tabs.group({ groupId: existingGroup.id, tabIds: freshTab.id });
+          console.log(`Tab ${freshTab.id} added to existing group "${existingGroup.title}"`);
         } else {
           // Create a new group for this tab
           const newGroupId = await new Promise((resolve, reject) => {
-            chrome.tabs.group({ tabIds: tab.id }, (groupId) => {
+            chrome.tabs.group({ tabIds: freshTab.id }, (groupId) => {
               if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError);
               } else {
@@ -84,13 +110,21 @@ async function groupTab(tab, retryCount = 0) {
           }
         }
       } catch (error) {
-        if (error.message.includes("Tabs cannot be edited right now") && retryCount < 3) {
-          console.warn(`Retrying to group tab ${tab.id} due to temporary lock... (${retryCount + 1}/3)`);
-          setTimeout(() => groupTab(tab, retryCount + 1), 500);
-        } else if (error.message.includes("No group with id")) {
-          console.error(`Group ID invalid or deleted: ${error.message}`);
+        const msg = error.message || "";
+        if (msg.includes("Tabs cannot be edited right now") && retryCount < 3) {
+          console.warn(`Retrying to group tab ${freshTab.id} due to temporary lock... (${retryCount + 1}/3)`);
+          setTimeout(() => groupTab(freshTab, retryCount + 1), 500);
+        } else if (msg.includes("No group with id")) {
+          console.error(`Group ID invalid or deleted: ${msg}`);
+        } else if (
+          msg.includes("No tab with id") ||
+          msg.includes("Cannot access contents of url") ||
+          msg.includes("Tab is not in the expected window")
+        ) {
+          // Tab was moved or closed during the split-view transition – safe to ignore
+          console.warn(`Skipping tab ${freshTab.id} due to window transition: ${msg}`);
         } else {
-          console.error(`Error grouping tab ${tab.id}:`, error.message);
+          console.error(`Error grouping tab ${freshTab.id}:`, msg);
         }
       }
 
@@ -128,5 +162,18 @@ chrome.tabs.onCreated.addListener((tab) => {
       }
     };
     chrome.tabs.onUpdated.addListener(listener);
+  }
+});
+
+// 4C: Fired when a tab is moved to a different window (e.g. split-view).
+// Re-apply grouping rules in the new window once Chrome settles.
+chrome.tabs.onAttached.addListener(async (tabId) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.url && tab.status === "complete") {
+      groupTab(tab);
+    }
+  } catch {
+    // Tab may not be ready yet; the subsequent onUpdated event will cover it
   }
 });
