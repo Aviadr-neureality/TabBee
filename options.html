@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>TabBee Settings</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      .section-title {
+        font-size: 1.4em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+      }
+
+      .form-field {
+        flex: 1;
+      }
+
+      label {
+        display: block;
+        font-weight: 500;
+        color: #555;
+        margin-bottom: 8px;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: #4facfe;
+        box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+      }
+
+      .color-picker-container {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .color-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .color-option:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+
+      .color-option.selected {
+        border-color: #333;
+        transform: scale(1.15);
+      }
+
+      .color-option.selected::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        width: 100%;
+        font-size: 16px;
+        padding: 15px;
+        margin-top: 20px;
+      }
+
+      .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(17, 153, 142, 0.3);
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        color: white;
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-left: 10px;
+      }
+
+      .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 65, 108, 0.3);
+      }
+
+      .btn-edit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+
+      .btn-edit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-save-edit {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+
+      .btn-cancel-edit {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+        color: #333;
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+
+      .rule-actions {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .edit-color-picker {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+      }
+
+      .edit-color-picker .color-option {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .edit-color-picker .color-option:hover {
+        transform: scale(1.2);
+      }
+
+      .edit-color-picker .color-option.selected {
+        border-color: #333;
+        transform: scale(1.3);
+      }
+
+      .rules-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 100px;
+      }
+
+      .rule-item {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #4facfe;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+      }
+
+      .rule-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .rule-item.editing {
+        border-left-color: #ff9800;
+        background: #fff8e1;
+      }
+
+      .rule-item.deleting {
+        opacity: 0.5;
+        background: #ffebee;
+        border-left-color: #f44336;
+      }
+
+      .rule-info {
+        flex: 1;
+      }
+
+      .rule-pattern {
+        font-weight: 600;
+        color: #333;
+        font-size: 16px;
+        margin-bottom: 5px;
+      }
+
+      .rule-pattern.editable {
+        background: white;
+        border: 2px solid #ff9800;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 14px;
+        width: 100%;
+        margin-bottom: 8px;
+      }
+
+      .rule-group {
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .rule-group-name {
+        flex: 1;
+      }
+
+      .rule-group-name.editable {
+        background: white;
+        border: 2px solid #ff9800;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 14px;
+        width: 200px;
+      }
+
+      .group-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      }
+
+      .empty-state {
+        text-align: center;
+        color: #666;
+        padding: 40px 20px;
+      }
+
+      .empty-state h3 {
+        margin-bottom: 10px;
+        color: #999;
+      }
+
+      .status-message {
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-top: 15px;
+        font-weight: 500;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .status-message.show {
+        opacity: 1;
+      }
+
+      .status-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🐝 TabBee</h1>
+        <p>Organize your tabs automatically with smart grouping rules</p>
+      </div>
+
+      <div class="content">
+        <div class="section">
+          <h2 class="section-title">Add New Grouping Rule</h2>
+          <form id="addRuleForm">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="pattern">Website Pattern</label>
+                <input type="text" id="pattern" placeholder="e.g. github.com, youtube.com" required />
+              </div>
+              <div class="form-field">
+                <label for="groupName">Group Name</label>
+                <input type="text" id="groupName" placeholder="e.g. Development, Entertainment" required />
+              </div>
+              <button type="submit" class="btn btn-primary">Add Rule</button>
+            </div>
+            
+            <div class="form-group">
+              <label>Group Color</label>
+              <div class="color-picker-container" id="colorPicker">
+                <div class="color-option selected" data-color="blue" style="background-color: #4285f4;"></div>
+                <div class="color-option" data-color="red" style="background-color: #ea4335;"></div>
+                <div class="color-option" data-color="yellow" style="background-color: #fbbc04;"></div>
+                <div class="color-option" data-color="green" style="background-color: #34a853;"></div>
+                <div class="color-option" data-color="pink" style="background-color: #ff6d9a;"></div>
+                <div class="color-option" data-color="purple" style="background-color: #9c27b0;"></div>
+                <div class="color-option" data-color="cyan" style="background-color: #00bcd4;"></div>
+                <div class="color-option" data-color="orange" style="background-color: #ff9800;"></div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Current Rules</h2>
+          <div class="rules-container" id="rulesContainer">
+            <div class="empty-state" id="emptyState">
+              <h3>No rules configured yet</h3>
+              <p>Add your first rule above to start organizing your tabs automatically!</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">ℹ️ How It Works</h2>
+          <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; color: #666; line-height: 1.6;">
+            <p><strong>🔍 Pattern Matching:</strong> Enter domain names (e.g., "github.com", "youtube.com") to automatically group tabs from those sites.</p>
+            <p><strong>🪟 Multiple Windows:</strong> Tab groups are created separately for each Chrome window - this is normal Chrome behavior and keeps your workspaces organized.</p>
+            <p><strong>🎨 Colors:</strong> Choose colors to make different groups easily identifiable at a glance.</p>
+            <p><strong>✏️ Editing:</strong> Click "Edit" on any rule to modify the pattern, group name, or color. Click "Delete" and confirm to remove rules.</p>
+          </div>
+        </div>
+
+        <button id="saveButton" class="btn btn-success">💾 Save All Rules</button>
+        <div id="statusMessage" class="status-message"></div>
+      </div>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
