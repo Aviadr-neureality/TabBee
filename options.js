@@ -11,17 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let groupingRules = [];
   let selectedColor = "blue"; // Default color
 
-  // Color mapping for Chrome tab groups
-  const colorMap = {
-    blue: { chrome: "blue", hex: "#4285f4" },
-    red: { chrome: "red", hex: "#ea4335" },
-    yellow: { chrome: "yellow", hex: "#fbbc04" },
-    green: { chrome: "green", hex: "#34a853" },
-    pink: { chrome: "pink", hex: "#ff6d9a" },
-    purple: { chrome: "purple", hex: "#9c27b0" },
-    cyan: { chrome: "cyan", hex: "#00bcd4" },
-    orange: { chrome: "orange", hex: "#ff9800" }
-  };
+  // COLOR_MAP, isValidPattern, isDuplicateRule, findMergeableGroups, countTabsByGroup
+  // are provided by utils.js (loaded before this script in options.html).
+  const colorMap = COLOR_MAP;
 
   // Initialize color picker
   function initializeColorPicker() {
@@ -46,15 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       statusMessage.classList.remove("show");
     }, 3000);
-  }
-
-  // Validate URL pattern
-  function isValidPattern(pattern) {
-    if (!pattern || pattern.trim().length === 0) return false;
-    
-    // Basic validation - should be a domain-like string
-    const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return domainRegex.test(pattern.trim());
   }
 
   // Render all rules in the UI
@@ -189,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Save edited rule
-  function saveEditRule(ruleDiv, ruleIndex, patternInput, groupNameInput, colorPickerDiv) {
+  function saveEditRule(_ruleDiv, ruleIndex, patternInput, groupNameInput, colorPickerDiv) {
     const newPattern = patternInput.value.trim();
     const newGroupName = groupNameInput.value.trim();
     const selectedColorOption = colorPickerDiv.querySelector(".color-option.selected");
@@ -207,14 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Check for duplicates (excluding current rule)
-    const isDuplicate = groupingRules.some((rule, index) => 
-      index !== ruleIndex && (
-        rule.pattern.toLowerCase() === newPattern.toLowerCase() || 
-        rule.groupName.toLowerCase() === newGroupName.toLowerCase()
-      )
-    );
-
-    if (isDuplicate) {
+    if (isDuplicateRule(groupingRules, newPattern, newGroupName, ruleIndex)) {
       showStatus("A rule with this pattern or group name already exists!", true);
       return;
     }
@@ -231,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Cancel editing
-  function cancelEditRule(ruleIndex) {
+  function cancelEditRule() {
     renderRules(); // Just re-render to restore original state
   }
 
@@ -280,14 +256,6 @@ document.addEventListener("DOMContentLoaded", () => {
     showStatus("Rule deleted successfully!");
   }
 
-  // Check for duplicate rules
-  function isDuplicateRule(pattern, groupName) {
-    return groupingRules.some(rule => 
-      rule.pattern.toLowerCase() === pattern.toLowerCase() || 
-      rule.groupName.toLowerCase() === groupName.toLowerCase()
-    );
-  }
-
   // Load existing rules from storage
   function loadRules() {
     chrome.storage.local.get(["groupingRules"], (result) => {
@@ -322,7 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (isDuplicateRule(newPattern, newGroupName)) {
+    if (isDuplicateRule(groupingRules, newPattern, newGroupName)) {
       showStatus("A rule with this pattern or group name already exists!", true);
       return;
     }
@@ -384,27 +352,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Count tabs per group
-    const tabCountByGroup = {};
-    for (const tab of allTabs) {
-      if (tab.groupId && tab.groupId !== -1) {
-        tabCountByGroup[tab.groupId] = (tabCountByGroup[tab.groupId] || 0) + 1;
-      }
-    }
-
-    // Index groups by title
-    const groupsByTitle = {};
-    for (const group of allGroups) {
-      if (!group.title) continue;
-      if (!groupsByTitle[group.title]) groupsByTitle[group.title] = [];
-      groupsByTitle[group.title].push(group);
-    }
-
-    // Only keep titles that appear in more than one window
-    const mergeables = Object.entries(groupsByTitle).filter(([, groups]) => {
-      const windowIds = new Set(groups.map(g => g.windowId));
-      return windowIds.size > 1;
-    });
+    const tabCountByGroup = countTabsByGroup(allTabs);
+    const mergeables = findMergeableGroups(allGroups);
 
     if (mergeables.length === 0) {
       mergeContainer.className = "merge-empty-state";
@@ -427,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const list = document.createElement("div");
       list.className = "merge-window-list";
 
-      groups.forEach((group, idx) => {
+      groups.forEach((group) => {
         const entry = document.createElement("div");
         entry.className = "merge-window-entry";
 

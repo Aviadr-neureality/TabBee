@@ -177,3 +177,18 @@ chrome.tabs.onAttached.addListener(async (tabId) => {
     // Tab may not be ready yet; the subsequent onUpdated event will cover it
   }
 });
+
+// ---------------------------------------------------------------------------
+// Node.js / Jest exports — no-op in the browser service-worker context
+// ---------------------------------------------------------------------------
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    groupTab,
+    handleTabUpdate,
+    getTabGroups,
+    /** Test helper: replace the in-memory rules array. */
+    _setRules: (rules) => { dynamicRules = rules; },
+    /** Test helper: read the current rules array. */
+    _getRules: () => dynamicRules,
+  };
+}

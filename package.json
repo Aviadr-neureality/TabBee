@@ -1,0 +1,16 @@
+{
+  "name": "tabbee",
+  "version": "1.0.0",
+  "description": "The Busy Bee that Organizes Your Tabs!",
+  "private": true,
+  "scripts": {
+    "test": "jest --forceExit",
+    "test:coverage": "jest --coverage --forceExit",
+    "lint": "eslint background.js options.js utils.js tests/"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

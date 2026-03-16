@@ -1,0 +1,37 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "webextensions": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "eqeqeq": "error",
+    "no-var": "error",
+    "prefer-const": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.js", "jest.setup.js", "jest.config.js"],
+      "env": {
+        "jest": true,
+        "node": true,
+        "browser": false,
+        "webextensions": false
+      }
+    },
+    {
+      "files": ["utils.js"],
+      "env": {
+        "browser": true,
+        "node": true,
+        "webextensions": false
+      }
+    }
+  ]
+}
