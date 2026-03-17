@@ -42,7 +42,7 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Extension manifest validation (web-ext lint)
+  # Chrome MV3 manifest validation
   # ─────────────────────────────────────────────────────────────────────────────
   validate-extension:
     name: Validate Extension
@@ -56,28 +56,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Install web-ext
-        run: npm install -g web-ext
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Lint extension (web-ext)
-        # Validates manifest.json structure and MV3 correctness.
-        # The ignored codes are all Firefox-specific requirements that don't
-        # apply to a Chrome-only MV3 extension:
-        #   ADDON_ID_REQUIRED                   – Firefox needs gecko.id, Chrome doesn't
-        #   BACKGROUND_SERVICE_WORKER_NOFALLBACK – Firefox wants scripts fallback
-        #   MISSING_DATA_COLLECTION_PERMISSIONS  – Firefox data-consent field
-        #   PERMISSION_FIREFOX_*                 – Firefox min-version notices
-        #   INCOMPATIBLE_API                     – tabGroups not in Firefox
-        run: >
-          web-ext lint
-          --source-dir .
-          --ignore-files "node_modules/**" "tests/**" "coverage/**"
-            "jest*.js" ".eslintrc.json" "package*.json"
-          --ignore-errors
-            ADDON_ID_REQUIRED
-            BACKGROUND_SERVICE_WORKER_NOFALLBACK
-            MISSING_DATA_COLLECTION_PERMISSIONS
-            PERMISSION_FIREFOX_UNSUPPORTED_BY_MIN_VERSION
-            PERMISSION_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION
-            INCOMPATIBLE_API
+      - name: Validate manifest (Chrome MV3)
+        # Custom validator: checks manifest fields, referenced files exist,
+        # Chrome permissions, and service worker JS syntax.
+        # Replaces web-ext lint which is a Firefox-focused tool and emits
+        # errors/warnings that don't apply to Chrome-only extensions.
+        run: npm run validate

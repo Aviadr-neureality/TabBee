@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest --forceExit",
     "test:coverage": "jest --coverage --forceExit",
-    "lint": "eslint background.js options.js utils.js tests/"
+    "lint": "eslint background.js options.js utils.js tests/ scripts/",
+    "validate": "node scripts/validate-extension.js"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
