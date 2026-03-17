@@ -82,32 +82,13 @@ async function groupTab(tab, retryCount = 0) {
           await chrome.tabs.group({ groupId: existingGroup.id, tabIds: freshTab.id });
           console.log(`Tab ${freshTab.id} added to existing group "${existingGroup.title}"`);
         } else {
-          // Create a new group for this tab
-          const newGroupId = await new Promise((resolve, reject) => {
-            chrome.tabs.group({ tabIds: freshTab.id }, (groupId) => {
-              if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-              } else {
-                resolve(groupId);
-              }
-            });
+          // Create a new group, then name and colour it
+          const newGroupId = await chrome.tabs.group({ tabIds: freshTab.id });
+          await chrome.tabGroups.update(newGroupId, {
+            title: rule.groupName,
+            color: rule.color || "blue",
           });
-
-          if (chrome.tabGroups && typeof chrome.tabGroups.update === "function") {
-            const groupColor = rule.color || "blue";
-            await new Promise((resolve, reject) => {
-              chrome.tabGroups.update(newGroupId, { title: rule.groupName, color: groupColor }, () => {
-                if (chrome.runtime.lastError) {
-                  reject(chrome.runtime.lastError);
-                } else {
-                  resolve();
-                }
-              });
-            });
-            console.log(`Created new group "${rule.groupName}" with ID ${newGroupId} and color ${groupColor}`);
-          } else {
-            console.warn("tabGroups.update is unavailable; can't set group title or color.");
-          }
+          console.log(`Created new group "${rule.groupName}" (id ${newGroupId}, color ${rule.color || "blue"})`);
         }
       } catch (error) {
         const msg = error.message || "";

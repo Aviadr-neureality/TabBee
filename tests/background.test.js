@@ -148,35 +148,24 @@ describe('groupTab — creates a new group', () => {
     });
     // No existing groups in this window
     chrome.tabGroups.query.mockResolvedValue([]);
-    // chrome.tabs.group (callback form) returns new group id 77
-    chrome.tabs.group.mockImplementation((options, callback) => {
-      if (callback) { callback(77); return; }
-      return Promise.resolve(77);
-    });
+    // Promise form — returns new group id 77
+    chrome.tabs.group.mockResolvedValue(77);
   });
 
   test('creates a new group by calling chrome.tabs.group with only tabIds', async () => {
     await bg.groupTab({ id: 7, url: 'https://github.com/bar' });
-    expect(chrome.tabs.group).toHaveBeenCalledWith({ tabIds: 7 }, expect.any(Function));
+    expect(chrome.tabs.group).toHaveBeenCalledWith({ tabIds: 7 });
   });
 
   test('calls chrome.tabGroups.update with the rule name and color', async () => {
     await bg.groupTab({ id: 7, url: 'https://github.com/bar' });
-    expect(chrome.tabGroups.update).toHaveBeenCalledWith(
-      77,
-      { title: 'Dev', color: 'purple' },
-      expect.any(Function)
-    );
+    expect(chrome.tabGroups.update).toHaveBeenCalledWith(77, { title: 'Dev', color: 'purple' });
   });
 
   test('defaults to color "blue" when rule has no color', async () => {
     bg._setRules([{ pattern: 'github.com', groupName: 'Dev' }]);
     await bg.groupTab({ id: 7, url: 'https://github.com/bar' });
-    expect(chrome.tabGroups.update).toHaveBeenCalledWith(
-      77,
-      { title: 'Dev', color: 'blue' },
-      expect.any(Function)
-    );
+    expect(chrome.tabGroups.update).toHaveBeenCalledWith(77, { title: 'Dev', color: 'blue' });
   });
 });
 
