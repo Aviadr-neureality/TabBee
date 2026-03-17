@@ -61,6 +61,15 @@ jobs:
         run: npm install -g web-ext
 
       - name: Lint extension (web-ext)
-        # web-ext lint validates manifest.json and flags common MV3 issues.
-        # --warnings-as-errors ensures even warnings fail the build.
-        run: web-ext lint --source-dir . --ignore-files "node_modules/**" "tests/**" "coverage/**" "jest*.js" ".eslintrc.json"
+        # Validates manifest.json and flags MV3 issues.
+        # BACKGROUND_SERVICE_WORKER_NOFALLBACK is Firefox-only: Chrome MV3
+        # service workers don't need a scripts fallback, so we skip that code.
+        # MISSING_DATA_COLLECTION_PERMISSIONS is also Firefox-only.
+        run: >
+          web-ext lint
+          --source-dir .
+          --ignore-files "node_modules/**" "tests/**" "coverage/**"
+            "jest*.js" ".eslintrc.json" "package*.json"
+          --ignore-errors
+            BACKGROUND_SERVICE_WORKER_NOFALLBACK
+            MISSING_DATA_COLLECTION_PERMISSIONS

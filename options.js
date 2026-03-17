@@ -338,8 +338,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const mergeContainer = document.getElementById("mergeContainer");
   const refreshMergeBtn = document.getElementById("refreshMergeBtn");
 
+  /** Clears the merge container and shows a single paragraph message. */
+  function setMergeMessage(text, color) {
+    const p = document.createElement("p");
+    p.style.cssText = `color:${color};text-align:center;padding:20px`;
+    p.textContent = text;
+    mergeContainer.replaceChildren(p);
+  }
+
   async function loadMergeableGroups() {
-    mergeContainer.innerHTML = "<p style='color:#888;text-align:center;padding:20px'>Scanning windows…</p>";
+    setMergeMessage("Scanning windows…", "#888");
 
     let allGroups, allTabs;
     try {
@@ -348,7 +356,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.tabs.query({})
       ]);
     } catch (e) {
-      mergeContainer.innerHTML = `<p style='color:#c00;text-align:center;padding:20px'>Error: ${e.message}</p>`;
+      setMergeMessage(`Error: ${e.message}`, "#c00");
       return;
     }
 
@@ -357,12 +365,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (mergeables.length === 0) {
       mergeContainer.className = "merge-empty-state";
-      mergeContainer.innerHTML = "No duplicate groups found across windows. All good! ✅";
+      mergeContainer.textContent = "No duplicate groups found across windows. All good! ✅";
       return;
     }
 
     mergeContainer.className = "";
-    mergeContainer.innerHTML = "";
+    mergeContainer.replaceChildren();
 
     for (const [title, groups] of mergeables) {
       const item = document.createElement("div");
