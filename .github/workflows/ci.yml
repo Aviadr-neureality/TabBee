@@ -61,15 +61,23 @@ jobs:
         run: npm install -g web-ext
 
       - name: Lint extension (web-ext)
-        # Validates manifest.json and flags MV3 issues.
-        # BACKGROUND_SERVICE_WORKER_NOFALLBACK is Firefox-only: Chrome MV3
-        # service workers don't need a scripts fallback, so we skip that code.
-        # MISSING_DATA_COLLECTION_PERMISSIONS is also Firefox-only.
+        # Validates manifest.json structure and MV3 correctness.
+        # The ignored codes are all Firefox-specific requirements that don't
+        # apply to a Chrome-only MV3 extension:
+        #   ADDON_ID_REQUIRED                   – Firefox needs gecko.id, Chrome doesn't
+        #   BACKGROUND_SERVICE_WORKER_NOFALLBACK – Firefox wants scripts fallback
+        #   MISSING_DATA_COLLECTION_PERMISSIONS  – Firefox data-consent field
+        #   PERMISSION_FIREFOX_*                 – Firefox min-version notices
+        #   INCOMPATIBLE_API                     – tabGroups not in Firefox
         run: >
           web-ext lint
           --source-dir .
           --ignore-files "node_modules/**" "tests/**" "coverage/**"
             "jest*.js" ".eslintrc.json" "package*.json"
           --ignore-errors
+            ADDON_ID_REQUIRED
             BACKGROUND_SERVICE_WORKER_NOFALLBACK
             MISSING_DATA_COLLECTION_PERMISSIONS
+            PERMISSION_FIREFOX_UNSUPPORTED_BY_MIN_VERSION
+            PERMISSION_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION
+            INCOMPATIBLE_API

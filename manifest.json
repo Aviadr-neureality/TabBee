@@ -20,11 +20,5 @@
     "page": "options.html",
     "open_in_tab": true
   },
-  "host_permissions": ["<all_urls>"],
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "tabbee@extension",
-      "strict_min_version": "109.0"
-    }
-  }
+  "host_permissions": ["<all_urls>"]
 }

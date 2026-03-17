@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Render all rules in the UI
   function renderRules() {
-    rulesContainer.innerHTML = "";
+    rulesContainer.replaceChildren();
     
     if (groupingRules.length === 0) {
       rulesContainer.appendChild(emptyState);
@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ruleInfo.appendChild(colorPickerDiv);
     
     // Replace action buttons
-    actionsDiv.innerHTML = "";
+    actionsDiv.replaceChildren();
     
     const saveButton = document.createElement("button");
     saveButton.className = "btn btn-save-edit";
@@ -214,36 +214,34 @@ document.addEventListener("DOMContentLoaded", () => {
   // Start delete process with confirmation
   function startDeleteRule(ruleDiv, ruleIndex) {
     ruleDiv.classList.add("deleting");
-    
+
     const actionsDiv = ruleDiv.querySelector(".rule-actions");
-    const originalContent = actionsDiv.innerHTML;
-    
-    actionsDiv.innerHTML = "";
-    
+    // Save the live DOM nodes (preserves their event listeners intact)
+    const originalNodes = [...actionsDiv.childNodes];
+
+    actionsDiv.replaceChildren();
+
     const confirmText = document.createElement("span");
     confirmText.textContent = "Delete this rule?";
     confirmText.style.color = "#d32f2f";
     confirmText.style.fontWeight = "500";
     confirmText.style.marginRight = "10px";
-    
+
     const confirmButton = document.createElement("button");
     confirmButton.className = "btn btn-danger";
     confirmButton.textContent = "Yes, Delete";
     confirmButton.addEventListener("click", () => confirmDeleteRule(ruleIndex));
-    
+
     const cancelButton = document.createElement("button");
     cancelButton.className = "btn btn-cancel-edit";
     cancelButton.textContent = "Cancel";
     cancelButton.addEventListener("click", () => {
       ruleDiv.classList.remove("deleting");
-      actionsDiv.innerHTML = originalContent;
-      // Re-bind event listeners
-      const editBtn = actionsDiv.querySelector(".btn-edit");
-      const deleteBtn = actionsDiv.querySelector(".btn-danger");
-      editBtn.addEventListener("click", () => startEditRule(ruleDiv, groupingRules[ruleIndex], ruleIndex));
-      deleteBtn.addEventListener("click", () => startDeleteRule(ruleDiv, ruleIndex));
+      // Restore original nodes — event listeners are preserved since these
+      // are the same DOM nodes (no innerHTML re-injection needed)
+      actionsDiv.replaceChildren(...originalNodes);
     });
-    
+
     actionsDiv.appendChild(confirmText);
     actionsDiv.appendChild(confirmButton);
     actionsDiv.appendChild(cancelButton);
