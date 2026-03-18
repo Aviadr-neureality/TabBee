@@ -143,12 +143,13 @@ describe('groupTab — adds tab to existing group', () => {
 describe('groupTab — creates a new group', () => {
   beforeEach(() => {
     bg._setRules([{ pattern: 'github.com', groupName: 'Dev', color: 'purple' }]);
-    chrome.tabs.get.mockResolvedValue({
-      id: 7, url: 'https://github.com/bar', status: 'complete', windowId: 10,
-    });
+    // First call: initial tab fetch (no groupId yet).
+    // Second call: re-fetch after chrome.tabs.group — Chrome has now assigned groupId 77.
+    chrome.tabs.get
+      .mockResolvedValueOnce({ id: 7, url: 'https://github.com/bar', status: 'complete', windowId: 10 })
+      .mockResolvedValue({ id: 7, url: 'https://github.com/bar', status: 'complete', windowId: 10, groupId: 77 });
     // No existing groups in this window
     chrome.tabGroups.query.mockResolvedValue([]);
-    // Promise form — returns new group id 77
     chrome.tabs.group.mockResolvedValue(77);
   });
 

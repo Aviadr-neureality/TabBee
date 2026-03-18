@@ -82,13 +82,21 @@ async function groupTab(tab, retryCount = 0) {
           await chrome.tabs.group({ groupId: existingGroup.id, tabIds: freshTab.id });
           console.log(`Tab ${freshTab.id} added to existing group "${existingGroup.title}"`);
         } else {
-          // Create a new group, then name and colour it
-          const newGroupId = await chrome.tabs.group({ tabIds: freshTab.id });
-          await chrome.tabGroups.update(newGroupId, {
-            title: rule.groupName,
-            color: rule.color || "blue",
-          });
-          console.log(`Created new group "${rule.groupName}" (id ${newGroupId}, color ${rule.color || "blue"})`);
+          // Create a new group. chrome.tabs.group() may not reliably return
+          // the group ID as a Promise in MV3 service workers, so re-fetch the
+          // tab afterwards to get the actual groupId Chrome assigned.
+          await chrome.tabs.group({ tabIds: freshTab.id });
+          const reFetched = await chrome.tabs.get(freshTab.id);
+          const newGroupId = reFetched.groupId;
+          if (newGroupId != null && newGroupId !== -1) {
+            await chrome.tabGroups.update(newGroupId, {
+              title: rule.groupName,
+              color: rule.color || "blue",
+            });
+            console.log(`Created new group "${rule.groupName}" (id ${newGroupId}, color ${rule.color || "blue"})`);
+          } else {
+            console.error(`Could not determine group ID for tab ${freshTab.id} after grouping`);
+          }
         }
       } catch (error) {
         const msg = error.message || "";
