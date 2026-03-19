@@ -11,17 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let groupingRules = [];
   let selectedColor = "blue"; // Default color
 
-  // Color mapping for Chrome tab groups
-  const colorMap = {
-    blue: { chrome: "blue", hex: "#4285f4" },
-    red: { chrome: "red", hex: "#ea4335" },
-    yellow: { chrome: "yellow", hex: "#fbbc04" },
-    green: { chrome: "green", hex: "#34a853" },
-    pink: { chrome: "pink", hex: "#ff6d9a" },
-    purple: { chrome: "purple", hex: "#9c27b0" },
-    cyan: { chrome: "cyan", hex: "#00bcd4" },
-    orange: { chrome: "orange", hex: "#ff9800" }
-  };
+  // COLOR_MAP, isValidPattern, isDuplicateRule, findMergeableGroups, countTabsByGroup
+  // are provided by utils.js (loaded before this script in options.html).
+  const colorMap = COLOR_MAP;
 
   // Initialize color picker
   function initializeColorPicker() {
@@ -48,18 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   }
 
-  // Validate URL pattern
-  function isValidPattern(pattern) {
-    if (!pattern || pattern.trim().length === 0) return false;
-    
-    // Basic validation - should be a domain-like string
-    const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return domainRegex.test(pattern.trim());
-  }
-
   // Render all rules in the UI
   function renderRules() {
-    rulesContainer.innerHTML = "";
+    rulesContainer.replaceChildren();
     
     if (groupingRules.length === 0) {
       rulesContainer.appendChild(emptyState);
@@ -169,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ruleInfo.appendChild(colorPickerDiv);
     
     // Replace action buttons
-    actionsDiv.innerHTML = "";
+    actionsDiv.replaceChildren();
     
     const saveButton = document.createElement("button");
     saveButton.className = "btn btn-save-edit";
@@ -189,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Save edited rule
-  function saveEditRule(ruleDiv, ruleIndex, patternInput, groupNameInput, colorPickerDiv) {
+  function saveEditRule(_ruleDiv, ruleIndex, patternInput, groupNameInput, colorPickerDiv) {
     const newPattern = patternInput.value.trim();
     const newGroupName = groupNameInput.value.trim();
     const selectedColorOption = colorPickerDiv.querySelector(".color-option.selected");
@@ -207,14 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Check for duplicates (excluding current rule)
-    const isDuplicate = groupingRules.some((rule, index) => 
-      index !== ruleIndex && (
-        rule.pattern.toLowerCase() === newPattern.toLowerCase() || 
-        rule.groupName.toLowerCase() === newGroupName.toLowerCase()
-      )
-    );
-
-    if (isDuplicate) {
+    if (isDuplicateRule(groupingRules, newPattern, newGroupName, ruleIndex)) {
       showStatus("A rule with this pattern or group name already exists!", true);
       return;
     }
@@ -231,43 +207,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Cancel editing
-  function cancelEditRule(ruleIndex) {
+  function cancelEditRule() {
     renderRules(); // Just re-render to restore original state
   }
 
   // Start delete process with confirmation
   function startDeleteRule(ruleDiv, ruleIndex) {
     ruleDiv.classList.add("deleting");
-    
+
     const actionsDiv = ruleDiv.querySelector(".rule-actions");
-    const originalContent = actionsDiv.innerHTML;
-    
-    actionsDiv.innerHTML = "";
-    
+    // Save the live DOM nodes (preserves their event listeners intact)
+    const originalNodes = [...actionsDiv.childNodes];
+
+    actionsDiv.replaceChildren();
+
     const confirmText = document.createElement("span");
     confirmText.textContent = "Delete this rule?";
     confirmText.style.color = "#d32f2f";
     confirmText.style.fontWeight = "500";
     confirmText.style.marginRight = "10px";
-    
+
     const confirmButton = document.createElement("button");
     confirmButton.className = "btn btn-danger";
     confirmButton.textContent = "Yes, Delete";
     confirmButton.addEventListener("click", () => confirmDeleteRule(ruleIndex));
-    
+
     const cancelButton = document.createElement("button");
     cancelButton.className = "btn btn-cancel-edit";
     cancelButton.textContent = "Cancel";
     cancelButton.addEventListener("click", () => {
       ruleDiv.classList.remove("deleting");
-      actionsDiv.innerHTML = originalContent;
-      // Re-bind event listeners
-      const editBtn = actionsDiv.querySelector(".btn-edit");
-      const deleteBtn = actionsDiv.querySelector(".btn-danger");
-      editBtn.addEventListener("click", () => startEditRule(ruleDiv, groupingRules[ruleIndex], ruleIndex));
-      deleteBtn.addEventListener("click", () => startDeleteRule(ruleDiv, ruleIndex));
+      // Restore original nodes — event listeners are preserved since these
+      // are the same DOM nodes (no innerHTML re-injection needed)
+      actionsDiv.replaceChildren(...originalNodes);
     });
-    
+
     actionsDiv.appendChild(confirmText);
     actionsDiv.appendChild(confirmButton);
     actionsDiv.appendChild(cancelButton);
@@ -278,14 +252,6 @@ document.addEventListener("DOMContentLoaded", () => {
     groupingRules.splice(ruleIndex, 1);
     renderRules();
     showStatus("Rule deleted successfully!");
-  }
-
-  // Check for duplicate rules
-  function isDuplicateRule(pattern, groupName) {
-    return groupingRules.some(rule => 
-      rule.pattern.toLowerCase() === pattern.toLowerCase() || 
-      rule.groupName.toLowerCase() === groupName.toLowerCase()
-    );
   }
 
   // Load existing rules from storage
@@ -322,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (isDuplicateRule(newPattern, newGroupName)) {
+    if (isDuplicateRule(groupingRules, newPattern, newGroupName)) {
       showStatus("A rule with this pattern or group name already exists!", true);
       return;
     }
@@ -365,14 +331,116 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ── Merge Tab Groups ─────────────────────────────────────────────────────────
+
+  const mergeContainer = document.getElementById("mergeContainer");
+  const refreshMergeBtn = document.getElementById("refreshMergeBtn");
+
+  /** Clears the merge container and shows a single paragraph message. */
+  function setMergeMessage(text, color) {
+    const p = document.createElement("p");
+    p.style.cssText = `color:${color};text-align:center;padding:20px`;
+    p.textContent = text;
+    mergeContainer.replaceChildren(p);
+  }
+
+  async function loadMergeableGroups() {
+    setMergeMessage("Scanning windows…", "#888");
+
+    let allGroups, allTabs;
+    try {
+      [allGroups, allTabs] = await Promise.all([
+        chrome.tabGroups.query({}),
+        chrome.tabs.query({})
+      ]);
+    } catch (e) {
+      setMergeMessage(`Error: ${e.message}`, "#c00");
+      return;
+    }
+
+    const tabCountByGroup = countTabsByGroup(allTabs);
+    const mergeables = findMergeableGroups(allGroups);
+
+    if (mergeables.length === 0) {
+      mergeContainer.className = "merge-empty-state";
+      mergeContainer.textContent = "No duplicate groups found across windows. All good! ✅";
+      return;
+    }
+
+    mergeContainer.className = "";
+    mergeContainer.replaceChildren();
+
+    for (const [title, groups] of mergeables) {
+      const item = document.createElement("div");
+      item.className = "merge-group-item";
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "merge-group-name";
+      nameEl.textContent = `"${title}" — ${groups.length} windows`;
+      item.appendChild(nameEl);
+
+      const list = document.createElement("div");
+      list.className = "merge-window-list";
+
+      groups.forEach((group) => {
+        const entry = document.createElement("div");
+        entry.className = "merge-window-entry";
+
+        const label = document.createElement("span");
+        const tabCount = tabCountByGroup[group.id] || 0;
+        label.textContent = `Window ${group.windowId}  ·  ${tabCount} tab${tabCount !== 1 ? "s" : ""}`;
+
+        const mergeBtn = document.createElement("button");
+        mergeBtn.className = "btn btn-merge";
+        mergeBtn.textContent = "Merge into this window";
+        mergeBtn.addEventListener("click", () => mergeGroupsInto(group, groups, allTabs));
+
+        entry.appendChild(label);
+        entry.appendChild(mergeBtn);
+        list.appendChild(entry);
+      });
+
+      item.appendChild(list);
+      mergeContainer.appendChild(item);
+    }
+  }
+
+  async function mergeGroupsInto(targetGroup, allGroupsForTitle, allTabs) {
+    const sourceGroups = allGroupsForTitle.filter(g => g.id !== targetGroup.id);
+
+    for (const sourceGroup of sourceGroups) {
+      const tabsToMove = allTabs.filter(t => t.groupId === sourceGroup.id);
+      if (tabsToMove.length === 0) continue;
+
+      const tabIds = tabsToMove.map(t => t.id);
+
+      try {
+        // Move tabs to the target window first
+        for (const tabId of tabIds) {
+          await chrome.tabs.move(tabId, { windowId: targetGroup.windowId, index: -1 });
+        }
+        // Then add them to the target group
+        await chrome.tabs.group({ groupId: targetGroup.id, tabIds });
+      } catch (e) {
+        showStatus(`Error merging: ${e.message}`, true);
+        return;
+      }
+    }
+
+    showStatus(`Merged all "${targetGroup.title}" groups into window ${targetGroup.windowId}! 🎉`);
+    // Refresh the merge list
+    loadMergeableGroups();
+  }
+
   // Initialize the options page
   function initialize() {
     initializeColorPicker();
     loadRules();
-    
+
     // Event listeners
     addRuleForm.addEventListener("submit", handleFormSubmit);
     saveButton.addEventListener("click", saveRules);
+    refreshMergeBtn.addEventListener("click", loadMergeableGroups);
     
     // Auto-save when rules change (optional)
     // Uncomment if you want automatic saving
